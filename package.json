@@ -1,0 +1,29 @@
+{
+  "name": "video-sharing-server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "NODE_ENV=production node server.js",
+    "dev": "export NODE_ENV=development && nodemon server.js",
+    "test": "mocha"
+  },
+  "author": "Fajar Dwi Darmanto",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^3.0.6",
+    "cloudinary": "^1.16.0",
+    "dotenv": "^8.2.0",
+    "jsonwebtoken": "^8.5.1",
+    "mongoose": "^5.7.4",
+    "restify": "^8.4.0",
+    "restify-cors-middleware": "^1.1.1",
+    "uuid": "^3.3.3"
+  },
+  "devDependencies": {
+    "expect.js": "^0.3.1",
+    "mocha": "^6.2.2",
+    "nodemon": "^1.19.3",
+    "supertest": "^4.0.2"
+  }
+}
