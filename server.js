@@ -1,15 +1,6 @@
 require('dotenv').config();
 const config = require('./app/config');
 
-// init cloudinary
-const cloudinary = require('cloudinary');
-const {cloudName, apiKey, apiSecret} = require('./app/config');
-cloudinary.config({ 
-  cloud_name: cloudName, 
-  api_key: apiKey, 
-  api_secret: apiSecret 
-});
-
 // init server
 const restify = require('restify');
 const server = restify.createServer();

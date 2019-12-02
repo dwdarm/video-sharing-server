@@ -3,12 +3,9 @@ const mongoose = require('mongoose');
 var videoSchema = mongoose.Schema({
   accountId: { type: mongoose.Schema.Types.ObjectId, required: true },
   username: { type: String, required: true },
-  title: { type: String, default: '' },
+  title: { type: String, required: true },
   caption: { type: String, default: '' },
   createdAt: { type: Date },
-  mediaId: { type: String, required: true },
-  width: { type: Number, default: 0 },
-  height: { type: Number, default: 0 },
   urlToVideo: { type: String, required: true },
   urlToThumbnail: { type: String },
   viewsTotal: { type: Number, default: 0 },

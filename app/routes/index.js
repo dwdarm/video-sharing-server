@@ -5,6 +5,7 @@ const init = (server) => {
   require('./account.js')(server);
   require('./video.js')(server);
   require('./comment.js')(server);
+  require('./upload.js')(server);
 }
 
 module.exports = init;

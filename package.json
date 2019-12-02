@@ -12,13 +12,12 @@
   "license": "ISC",
   "dependencies": {
     "bcrypt": "^3.0.6",
-    "cloudinary": "^1.16.0",
     "dotenv": "^8.2.0",
     "jsonwebtoken": "^8.5.1",
     "mongoose": "^5.7.4",
     "restify": "^8.4.0",
     "restify-cors-middleware": "^1.1.1",
-    "uuid": "^3.3.3"
+    "sha1": "^1.1.1"
   },
   "devDependencies": {
     "expect.js": "^0.3.1",

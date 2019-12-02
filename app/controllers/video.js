@@ -1,11 +1,8 @@
-const fs = require('fs');
-const uuid = require('uuid/v4');
 const Video = require('../models').video;
 const Account = require('../models').account;
 const Like = require('../models').like;
 const Comment = require('../models').comment;
 const handleError = require('../common/handle-error.js');
-const handleUpload = require('../common/handle-upload.js');
 
 module.exports = {
 
@@ -49,65 +46,25 @@ module.exports = {
   async postVideo(req, res, next) {
     try {
       if (!req.auth) throw new Error('unauthorizedError');
+      if (!req.body.title || !req.body.urlToVideo) throw new Error('parametersError');
 
       const self = await Account.findById(req.userid).exec();
       if (!self) throw new Error('unauthorizedError'); 
       if (!self.verified) throw new Error('verifiedError'); 
 
-      // check video
-      if (!req.files['video']) throw new Error('validationError');
-
-      // check type
-      if (req.files['video'].type !== 'video/mp4') throw new Error('validationError');
-
-      // handle uploaded video
-      const mediaId = uuid();
-      const result = await handleUpload(req.files['video'].path, 'video', `videos/${mediaId}`);
-
-      let urlToThumbnail;
-      if (req.files['thumb'] && req.files['thumb'].type === 'image/jpeg') {
-        const result2 = await handleUpload(req.files['thumb'].path, 'image', `thumbs/${mediaId}`);
-        urlToThumbnail = result2.url;
-      } else {
-        const result2 = await handleUpload(result.url.replace('.mp4', '.jpg'), 'image', `thumbs/${mediaId}`);
-        urlToThumbnail = result2.url;
-      }
-
-      // save video to database
       const video = new Video({
         accountId: req.userid,
         username: req.username,
         title: req.body.title,
-        mediaId: result.public_id,
-        width: result.width,
-        height: result.height,
-        urlToVideo: result.url,
-        urlToThumbnail: urlToThumbnail
+        urlToVideo: req.body.urlToVideo,
+        urlToThumbnail: req.body.urlToThumbnail
       });
       await video.save();
-
-      if (req.files['thumb']) {
-        fs.unlinkSync(req.files['thumb'].path);
-      }
-
-      if (req.files['video']) {
-        fs.unlinkSync(req.files['video'].path);
-      }
     
       res.send(201, { status:201, success:true, data:video });
       return next();
-    } catch(err) { 
 
-      if (req.files['thumb']) {
-        fs.unlinkSync(req.files['thumb'].path);
-      }
-
-      if (req.files['video']) {
-        fs.unlinkSync(req.files['video'].path);
-      }
-
-      return handleError(err.message, res, next); 
-    }
+    } catch(err) { return handleError(err.message, res, next); }
   },
 
   /**
@@ -129,6 +86,8 @@ module.exports = {
       var update = {};
       if (req.body.title) update.title = req.body.title;
       if (req.body.caption) update.caption = req.body.caption;
+      if (req.body.urlToVideo) update.urlToVideo = req.body.urlToVideo;
+      if (req.body.urlToThumbnail) update.urlToThumbnail = req.body.urlToThumbnail;
       if (req.body.public !== undefined) update.public = req.body.public;
       await Video.updateOne({_id:req.params.id}, {$set:update});
 

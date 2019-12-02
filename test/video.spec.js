@@ -78,33 +78,37 @@ describe('Video endpoint test', () => {
       });
       await account.save();
       const token = await tkn.generateToken({id:account._id,username:account.username,role:account.role});
-      const path = `${process.cwd()}/test/sample.mp4`;
+      const video = {
+        title: 'title of the video',
+        urlToVideo: 'url_to_video',
+        urlToThumbnail: 'url_to_thumb'
+      }
       const res = await request(server)
         .post('/videos')
-        .type('application/x-www-form-urlencoded')
-        .field('title', 'cut bunny')
-        .attach('video', path)
         .set('Authorization', `Bearer ${token}`)
         .set('Accept', 'application/json')
+        .send(video)
       expect(res.status).to.eql(201);
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(true);
     });
 
     it('it should not POST a video if it is not authenticated', async () => {
-      const path = `${process.cwd()}/test/sample.mp4`;
+      const video = {
+        title: 'title of the video',
+        urlToVideo: 'url_to_video',
+        urlToThumbnail: 'url_to_thumb'
+      }
       const res = await request(server)
         .post('/videos')
-        .type('application/x-www-form-urlencoded')
-        .field('title', 'cut bunny')
-        .attach('video', path)
         .set('Accept', 'application/json')
+        .send(video)
       expect(res.status).to.eql(401);
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(false);
     });
 
-    it('it should not POST a video if file is not provided', async () => {
+    it('it should not POST a video if required paramaters is not provided', async () => {
       const account = new Account({
         username: 'alpha',
         email: 'alpha@alpha.com',
@@ -112,13 +116,14 @@ describe('Video endpoint test', () => {
       });
       await account.save();
       const token = await tkn.generateToken({id:account._id,username:account.username,role:account.role});
-      const path = `${process.cwd()}/test/sample.mp4`;
+      const video = {
+        title: 'title of the video'
+      }
       const res = await request(server)
         .post('/videos')
-        .type('application/x-www-form-urlencoded')
-        .field('title', 'cut bunny')
         .set('Authorization', `Bearer ${token}`)
         .set('Accept', 'application/json')
+      .send(video)
       expect(res.status).to.eql(400);
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(false);

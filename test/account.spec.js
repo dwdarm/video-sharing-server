@@ -189,7 +189,8 @@ describe('Account endpoint test', () => {
       });
       const update = {
         about: 'hello world',
-        private: true
+        private: true,
+        urlToAvatar: 'url_to_avatar'
       }
       await account.save();
       const token = await tkn.generateToken({id:account._id,username:account.username,role:account.role});
@@ -204,6 +205,7 @@ describe('Account endpoint test', () => {
       const updated = await Account.findById(account._id);
       expect(updated.about).to.eql(update.about);
       expect(updated.private).to.eql(update.private);
+      expect(updated.urlToAvatar).to.eql(update.urlToAvatar);
     });
 
     it('it should not UPDATE currently signed account if ID is different', async () => {
@@ -267,6 +269,39 @@ describe('Account endpoint test', () => {
       expect(res.status).to.eql(401);
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(false);
+    });
+
+  });
+
+  /**
+   * /GET /accounts/:id/subscriptions
+   */
+
+  describe('/GET /accounts/:id/subscriptions', () => {
+
+    it('it should GET subscriptions list', async () => {
+      const beta = new Account({
+        username: 'beta',
+        email: 'beta@beta.com',
+        password: '12345678',
+        subscribersTotal: 1
+      });
+      await beta.save();
+      const alpha = new Account({
+        username: 'alpha',
+        email: 'alpha@alpha.com',
+        password: '12345678',
+        subscribe: [beta._id]
+      });
+      await alpha.save();
+      const token = await tkn.generateToken({id:alpha._id,username:alpha.username,role:alpha.role});
+      const res = await request(server)
+        .get(`/accounts/${alpha._id}/subscriptions`)
+        .set('Authorization', `Bearer ${token}`)
+        .set('Accept', 'application/json')
+      expect(res.status).to.eql(200);
+      expect(res.body).to.be.an('object');
+      expect(res.body.success).to.eql(true);
     });
 
   });
@@ -492,30 +527,6 @@ describe('Account endpoint test', () => {
       expect(res.status).to.eql(401);
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(false);
-    });
-
-  });
-
-  describe('/accounts/:id/avatar', () => {
-
-    it('it should UPDATE account avatar', async () => {
-      const account = new Account({
-        username: 'alpha',
-        email: 'alpha@alpha.com',
-        password: '12345678'
-      });
-      await account.save();
-      const token = await tkn.generateToken({id:account._id,username:account.username,role:account.role});
-      const path = `${process.cwd()}/test/avatar-sample.jpg`;
-      const res = await request(server)
-        .put(`/accounts/${account._id}/avatar`)
-        .type('application/x-www-form-urlencoded')
-        .attach('image', path)
-        .set('Authorization', `Bearer ${token}`)
-        .set('Accept', 'application/json')
-      expect(res.status).to.eql(200);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.eql(true);
     });
 
   });

@@ -1,8 +1,6 @@
-const fs = require('fs');
 const Account = require('../models').account;
 const Like = require('../models').like;
 const handleError = require('../common/handle-error.js');
-const handleUpload = require('../common/handle-upload.js');
 
 module.exports = {
 
@@ -80,10 +78,31 @@ module.exports = {
       var update = {};
       if (req.body.about) update.about = req.body.about;
       if (req.body.private !== undefined) update.private = req.body.private;
+      if (req.body.urlToAvatar) update.urlToAvatar = req.body.urlToAvatar;
 
       await Account.updateOne({_id:req.params.id}, {$set: update}).exec();
 
       res.send(200, { status:200, success:true });
+      return next();
+    } catch(err) { handleError(err.message, res, next); }
+  },
+
+  /**
+   * /GET /accounts/:id/subscriptions
+   */
+
+  async getAccountSubscriptions(req, res, next) {
+    try {
+      if (!req.auth) throw new Error('unauthorizedError');
+      if (req.userid != req.params.id) throw new Error('forbiddenError');
+  
+      const subs = await Account
+        .findById(req.userid, 'subscribe')
+        .populate('subscribe', '-subscribe -saved -password -role')
+        .exec();
+      if (!subs) throw new Error('notFoundError');
+    
+      res.send(200, { status:200, success:true, data:subs.subscribe });
       return next();
     } catch(err) { handleError(err.message, res, next); }
   },
@@ -141,37 +160,6 @@ module.exports = {
       res.send(200, { status:200, success:true, data:likes });
       return next();
     } catch(err) { handleError(err.message, res, next); }
-  },
-
-  /**
-   * /PUT /accounts/:id/avatar
-   */
-
-  async updateAccountAvatar(req, res, next) {
-    try {
-      if (!req.auth) throw new Error('unauthorizedError');
-      if (req.userid != req.params.id) throw new Error('unauthorizedError');
-
-      if (!req.files['image']) throw new Error('validationError');
-      if (req.files['image'].type !== 'image/jpeg') throw new Error('validationError');
-
-      const result = await handleUpload(req.files['image'].path, 'image', `avatars/${req.params.id}`);
-      await Account.updateOne({_id:req.params.id}, {$set:{urlToAvatar:result.url}});
-
-      if (req.files['image']) {
-        fs.unlinkSync(req.files['image'].path);
-      }
-    
-      res.send(200, { status:200, success:true, data:result.url });
-      return next();
-    } catch(err) { 
-
-      if (req.files['image']) {
-        fs.unlinkSync(req.files['image'].path);
-      }
-
-      return handleError(err.message, res, next); 
-    }
   }
 
 }
