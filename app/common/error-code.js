@@ -21,7 +21,7 @@ module.exports = {
   validationError: {
     status: 400,
     errorCode: 'validationError',
-    message: 'Paramaters is not sufficient'
+    message: 'The value of the paramaters is not acceptable'
   },
 
   duplicateKeyError: {
@@ -39,7 +39,7 @@ module.exports = {
   parametersError: {
     status: 400,
     errorCode: 'parametersError',
-    message: 'Paramaters is not sufficient'
+    message: 'Required paramaters is not supplied'
   },
 
   notFoundError: {

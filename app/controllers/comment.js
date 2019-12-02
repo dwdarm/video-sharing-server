@@ -14,6 +14,7 @@ module.exports = {
       var query = {};
       if (req.query.accountid) query.accountId = req.query.accountid;
       if (req.query.videoid) query.videoId = req.query.videoid;
+      if (req.query.root) query.isRoot = req.query.root;
       if (req.query.parentid) query.parentId = req.query.parentid;
       const limit = (req.query.limit) ? parseInt(req.query.limit) : 20;
       const skip = (req.query.page) ? ((parseInt(req.query.page)-1)*limit) : 0;
@@ -45,6 +46,7 @@ module.exports = {
   async updateComment(req, res, next) {
     try {
       if (!req.auth) throw new Error('unauthorizedError');
+      if (!req.body) throw new Error('emptyBodyError');
 
       const comment = await Comment.findById(req.params.id).exec();
       if (!comment) throw new Error('notFoundError');
@@ -90,6 +92,7 @@ module.exports = {
   async replyComment(req, res, next) {
     try {
       if (!req.auth) throw new Error('unauthorizedError');
+      if (!req.body) throw new Error('emptyBodyError');
 
       const self = await Account.findById(req.userid).exec();
       if (!self) throw new Error('unauthorizedError'); 
@@ -101,6 +104,7 @@ module.exports = {
       const comment = new Comment({
         accountId: self._id,
         videoId: parent.videoId,
+        isRoot: false,
         parentId: parent._id,
         text: (req.body.text) ? req.body.text : ''
       });

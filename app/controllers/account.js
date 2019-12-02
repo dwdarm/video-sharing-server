@@ -1,6 +1,7 @@
 const Account = require('../models').account;
 const Like = require('../models').like;
 const handleError = require('../common/handle-error.js');
+const validation = require('../common/validation.js');
 
 module.exports = {
 
@@ -53,7 +54,9 @@ module.exports = {
       if (!req.body.username || 
           !req.body.email || 
           !req.body.password) throw new Error('parametersError');
-      if (req.body.password.length < 8) throw new Error('parametersError');
+      if (!validation.isUsername(req.body.username)) throw new Error('validationError');
+      if (!validation.isEmail(req.body.email)) throw new Error('validationError');
+      if (req.body.password.length < 8) throw new Error('validationError');
 
       const account = new Account({
         username: req.body.username,
@@ -74,6 +77,7 @@ module.exports = {
     try {
       if (!req.auth) throw new Error('unauthorizedError');
       if (req.userid != req.params.id) throw new Error('forbiddenError');
+      if (!req.body) throw new Error('emptyBodyError');
 
       var update = {};
       if (req.body.about) update.about = req.body.about;
@@ -125,7 +129,7 @@ module.exports = {
   },
 
   /**
-   * /DELETE /accounts/:id/unsubscribe
+   * /DELETE /accounts/:id/subscribe
    */
 
   async unsubscribeAccount(req, res, next) {

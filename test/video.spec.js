@@ -407,7 +407,7 @@ describe('Video endpoint test', () => {
 
   });
 
-  describe('/DELETE /videos/:id/unlike', () => {
+  describe('/DELETE /videos/:id/like', () => {
 
     var accountId, username, token;
 
@@ -435,7 +435,7 @@ describe('Video endpoint test', () => {
       await video.save();
       await new Like({accountId:accountId,videoId:video._id}).save();
       var res = await request(server)
-        .delete(`/videos/${video._id}/unlike`)
+        .delete(`/videos/${video._id}/like`)
         .set('Authorization', `Bearer ${token}`)
         .set('Accept', 'application/json')
       expect(res.status).to.eql(200);
@@ -454,7 +454,7 @@ describe('Video endpoint test', () => {
 
     it('it should not UPDATE video\'s likes if the video is not exist', async () => {
       var res = await request(server)
-        .delete(`/videos/5d273f9ed58f5e7093b549b0/unlike`)
+        .delete(`/videos/5d273f9ed58f5e7093b549b0/like`)
         .set('Authorization', `Bearer ${token}`)
         .set('Accept', 'application/json')
       expect(res.status).to.eql(404);
@@ -472,46 +472,9 @@ describe('Video endpoint test', () => {
       });
       await video.save();
       var res = await request(server)
-        .delete(`/videos/${video._id}/unlike`)
+        .delete(`/videos/${video._id}/like`)
         .set('Accept', 'application/json')
       expect(res.status).to.eql(401);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.eql(false);
-    });
-
-  });
-
-  describe('/GET /videos/:id/comments', () => {
-
-    it('it should GET all video\'s comments by given ID', async () => {
-      const account = new Account({
-        username: 'alpha',
-        email: 'alpha@alpha.com',
-        password: '12345678'
-      });
-      await account.save();
-      const video = new Video({
-        accountId: account._id,
-        username: account.username,
-        title: 'test',
-        mediaId: 'test',
-        urlToVideo: 'test',
-      });
-      await video.save();
-      const res = await request(server)
-        .get(`/videos/${video._id}/comments`)
-        .set('Accept', 'application/json')
-      expect(res.status).to.eql(200);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.eql(true);
-      expect(res.body.data).to.be.an('array');
-    });
-
-    it('it should not GET all video\'s comments if the video is not exist', async () => {
-      const res = await request(server)
-        .get(`/videos/5d273f9ed58f5e7093b549b0/comments`)
-        .set('Accept', 'application/json')
-      expect(res.status).to.eql(404);
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(false);
     });

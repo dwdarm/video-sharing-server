@@ -3,6 +3,7 @@ const mongoose = require('mongoose');
 var commentSchema = mongoose.Schema({
   accountId: { type: mongoose.Schema.Types.ObjectId, required: true },
   videoId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  isRoot: { type: Boolean, default: true },
   parentId: mongoose.Schema.Types.ObjectId,
   createdAt: { type: Date },
   text: { type: String, default: '' },

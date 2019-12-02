@@ -67,6 +67,36 @@ describe('Account endpoint test', () => {
       expect(res.body.success).to.eql(false);
     });
 
+    it('it should not POST an account if username is not acceptable', async () => {
+      const account = {
+        username: '_alpha',
+        email: 'alpha@alpha.com',
+        password: '12345678'
+      }
+      const res = await request(server)
+        .post('/accounts')
+        .send(account)
+        .set('Accept', 'application/json');
+      expect(res.status).to.eql(400);
+      expect(res.body).to.be.an('object');
+      expect(res.body.success).to.eql(false);
+    });
+
+    it('it should not POST an account if email is not acceptable', async () => {
+      const account = {
+        username: 'alpha',
+        email: 'alpha',
+        password: '12345678'
+      }
+      const res = await request(server)
+        .post('/accounts')
+        .send(account)
+        .set('Accept', 'application/json');
+      expect(res.status).to.eql(400);
+      expect(res.body).to.be.an('object');
+      expect(res.body.success).to.eql(false);
+    });
+
     it('it should not POST an account if email is undefined', async () => {
       const account = {
         username: 'alpha',
@@ -397,10 +427,10 @@ describe('Account endpoint test', () => {
   });
 
   /**
-   * /DELETE /accounts/:id/unsubscribe
+   * /DELETE /accounts/:id/subscribe
    */
 
-  describe('/DELETE /accounts/:id/unsubscribe', () => {
+  describe('/DELETE /accounts/:id/subscribe', () => {
 
     it('it should unsubscribe given ID', async () => {
       const beta = new Account({
@@ -419,7 +449,7 @@ describe('Account endpoint test', () => {
       await alpha.save();
       const token = await tkn.generateToken({id:alpha._id,username:alpha.username,role:alpha.role});
       const res = await request(server)
-        .delete(`/accounts/${beta._id}/unsubscribe`)
+        .delete(`/accounts/${beta._id}/subscribe`)
         .set('Authorization', `Bearer ${token}`)
         .set('Accept', 'application/json')
       expect(res.status).to.eql(200);
@@ -447,7 +477,7 @@ describe('Account endpoint test', () => {
       });
       await alpha.save();
       const res = await request(server)
-        .delete(`/accounts/${beta._id}/unsubscribe`)
+        .delete(`/accounts/${beta._id}/subscribe`)
         .set('Accept', 'application/json')
       expect(res.status).to.eql(401);
       expect(res.body).to.be.an('object');
@@ -463,7 +493,7 @@ describe('Account endpoint test', () => {
       await alpha.save();
       const token = await tkn.generateToken({id:alpha._id,username:alpha.username,role:alpha.role});
       const res = await request(server)
-        .delete('/accounts/5d273f9ed58f5e7093b549b0/unsubscribe')
+        .delete('/accounts/5d273f9ed58f5e7093b549b0/subscribe')
         .set('Authorization', `Bearer ${token}`)
         .set('Accept', 'application/json')
       expect(res.status).to.eql(200);
@@ -480,7 +510,7 @@ describe('Account endpoint test', () => {
       await alpha.save();
       const token = await tkn.generateToken({id:alpha._id,username:alpha.username,role:alpha.role});
       const res = await request(server)
-        .delete(`/accounts/${alpha._id}/unsubscribe`)
+        .delete(`/accounts/${alpha._id}/subscribe`)
         .set('Authorization', `Bearer ${token}`)
         .set('Accept', 'application/json')
       expect(res.status).to.eql(403);

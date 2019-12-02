@@ -46,6 +46,7 @@ module.exports = {
   async postVideo(req, res, next) {
     try {
       if (!req.auth) throw new Error('unauthorizedError');
+      if (!req.body) throw new Error('emptyBodyError');
       if (!req.body.title || !req.body.urlToVideo) throw new Error('parametersError');
 
       const self = await Account.findById(req.userid).exec();
@@ -74,6 +75,7 @@ module.exports = {
    async updateVideo(req, res, next) {
     try {
       if (!req.auth) throw new Error('unauthorizedError');
+      if (!req.body) throw new Error('emptyBodyError');
 
       const self = await Account.findById(req.userid).exec();
       if (!self) throw new Error('unauthorizedError');
@@ -150,7 +152,7 @@ module.exports = {
    },
 
    /**
-   * /PUT /videos/:id/unlike
+   * /DELETE /videos/:id/like
    */
 
   async unlikeVideo(req, res, next) {
@@ -185,6 +187,7 @@ module.exports = {
   async commentVideo(req, res, next) {
     try {
       if (!req.auth) throw new Error('unauthorizedError');
+      if (!req.body) throw new Error('emptyBodyError');
 
       const self = await Account.findById(req.userid).exec();
       if (!self) throw new Error('unauthorizedError');
@@ -204,26 +207,6 @@ module.exports = {
       res.send(201, { status:201, success:true, data:comment });
       return next();
     } catch(err) { return handleError(err.message, res, next); }
-   },
-
-   /**
-   * /GET /videos/:id/comments
-   */
-
-  async getVideoComments(req, res, next) {
-    try {
-      const video = await Video.findById(req.params.id).exec();
-      if (!video) throw new Error('notFoundError');
-
-      const limit = (req.query.limit) ? parseInt(req.query.limit) : 20;
-      const skip = (req.query.page) ? ((parseInt(req.query.page)-1)*limit) : 0;
-      const comments = await Comment
-        .find({videoId:req.params.id})
-        .skip(skip).limit(limit).exec();
-
-      res.send(200, { status:200, success:true, data:comments });
-      return next();
-    } catch(err) { handleError(err.message, res, next); }
-  }
+   }
 
 }

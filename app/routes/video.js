@@ -8,9 +8,8 @@ const init = (server) => {
   server.del('/videos/:id', video.deleteVideo);
 
   server.put('/videos/:id/like', video.likeVideo);
-  server.del('/videos/:id/unlike', video.unlikeVideo);
+  server.del('/videos/:id/like', video.unlikeVideo);
 
-  server.get('/videos/:id/comments', video.getVideoComments);
   server.post('/videos/:id/comment', video.commentVideo);
 }
 

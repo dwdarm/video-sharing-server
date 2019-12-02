@@ -8,7 +8,7 @@ const init = (server) => {
   server.get('/accounts/:id/likes', account.getAccountLikes);
   server.get('/accounts/:id/subscriptions', account.getAccountSubscriptions);
   server.put('/accounts/:id/subscribe', account.subscribeAccount);
-  server.del('/accounts/:id/unsubscribe', account.unsubscribeAccount);
+  server.del('/accounts/:id/subscribe', account.unsubscribeAccount);
 }
 
 module.exports = init;
