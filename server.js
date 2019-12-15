@@ -7,7 +7,8 @@ const server = restify.createServer();
 const corsMiddleware = require('restify-cors-middleware');
 
 const cors = corsMiddleware({
-  origins: ['*']
+  origins: ['*'],
+  allowHeaders: ['Authorization']
 });
 server.pre(cors.preflight);
 server.use(cors.actual);

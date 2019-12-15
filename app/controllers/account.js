@@ -15,11 +15,31 @@ module.exports = {
       const limit = (req.query.limit) ? parseInt(req.query.limit) : 20;
       const skip = (req.query.page) ? ((parseInt(req.query.page)-1)*limit) : 0;
       const accounts = await Account
-        .find(username, '-subscribe -saved -password -role -verified')
+        .find(username, '-subscribe -saved -password -role')
         .skip(skip).limit(limit).exec();
 
-      res.send(200, { status:200, success:true, data:accounts });
+      if (req.auth) {
+        const self = await Account.findById(req.userid);
+        if (self) {
+          var results = [];
+          accounts.forEach(account => {
+            if (req.userid != account.id) {
+              results.push({
+                ...account._doc,
+                isSubscribed: self.subscribe.indexOf(account._id) != -1
+              })
+            } else {
+              results.push(account)
+            }
+          });
+          res.send(200, { status: 200, success: true, data: results });
+          return next();
+        }
+      } 
+
+      res.send(200, { status: 200, success: true, data: accounts });
       return next();
+
     } catch(err) { handleError(err.message, res, next); }
   },
 
@@ -38,8 +58,22 @@ module.exports = {
   
       const account = await Account.findById(userid, '-subscribe -saved -password -role').exec();
       if (!account) throw new Error('notFoundError');
-    
-      res.send(200, { status:200, success:true, data:account });
+
+      if ((!req.auth) || (req.userid == account.id)) {
+        res.send(200, { status:200, success:true, data:account });
+        return next();
+      }
+
+      const self = await Account.findById(req.userid).exec();
+      if(!self) {
+        res.send(200, { status:200, success:true, data:account });
+        return next();
+      }
+
+      res.send(200, { status:200, success:true, data: {
+        ...account._doc,
+        isSubscribed: self.subscribe.indexOf(account._id) != -1
+      }});
       return next();
     } catch(err) { handleError(err.message, res, next); }
   },
@@ -54,9 +88,9 @@ module.exports = {
       if (!req.body.username || 
           !req.body.email || 
           !req.body.password) throw new Error('parametersError');
-      if (!validation.isUsername(req.body.username)) throw new Error('validationError');
-      if (!validation.isEmail(req.body.email)) throw new Error('validationError');
-      if (req.body.password.length < 8) throw new Error('validationError');
+      if (!validation.isUsername(req.body.username)) throw new Error('parametersError');
+      if (!validation.isEmail(req.body.email)) throw new Error('parametersError');
+      if (req.body.password.length < 8) throw new Error('parametersError');
 
       const account = new Account({
         username: req.body.username,
@@ -121,7 +155,9 @@ module.exports = {
       if (req.userid == req.params.id) throw new Error('forbiddenError');
   
       const result = await Account.updateOne({_id:req.userid}, {$addToSet:{subscribe:req.params.id}});
-      if (result.nModified) await Account.updateOne({_id:req.params.id}, {$inc:{subscribersTotal:1}});
+      if (!result.nModified) throw new Error('forbiddenError');
+
+      await Account.updateOne({_id:req.params.id}, {$inc:{subscribersTotal:1}});
   
       res.send(200, { status:200, success:true });
       return next();
@@ -138,7 +174,9 @@ module.exports = {
       if (req.userid == req.params.id) throw new Error('forbiddenError');
   
       const result = await Account.updateOne({_id:req.userid}, {$pull:{subscribe:req.params.id}});
-      if (result.nModified) await Account.updateOne({_id:req.params.id}, {$inc:{subscribersTotal:-1}});
+      if (!result.nModified) throw new Error('forbiddenError');
+
+      await Account.updateOne({_id:req.params.id}, {$inc:{subscribersTotal:-1}});
       
       res.send(200, { status:200, success:true });
       return next();
@@ -158,8 +196,17 @@ module.exports = {
       const skip = (req.query.page) ? ((parseInt(req.query.page)-1)*limit) : 0;
       const likes = await Like
         .find({accountId:req.params.id})
-        .populate('videoId')
-        .skip(skip).limit(limit).exec();
+        .populate({
+          path: 'videoId',
+          populate: {
+            path: 'accountId',
+            select: '-subscribe -saved -password -role'
+          }
+        })
+        .skip(skip)
+        .limit(limit)
+        .sort({startedAt:-1})
+        .exec();
 
       res.send(200, { status:200, success:true, data:likes });
       return next();

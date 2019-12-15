@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 
 var commentSchema = mongoose.Schema({
-  accountId: { type: mongoose.Schema.Types.ObjectId, required: true },
-  videoId: { type: mongoose.Schema.Types.ObjectId, required: true },
+  accountId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Account' },
+  videoId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Video' },
   isRoot: { type: Boolean, default: true },
   parentId: mongoose.Schema.Types.ObjectId,
   createdAt: { type: Date },

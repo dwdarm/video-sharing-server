@@ -120,9 +120,9 @@ describe('Account endpoint test', () => {
       await account.save();
       const res = await request(server)
         .post('/accounts')
-        .send({username: 'alpha', email: 'alpha', password: '12345678'})
+        .send({username: 'alpha', email: 'alpha@alpha.com', password: '12345678'})
         .set('Accept', 'application/json');
-      expect(res.status).to.eql(400);
+      expect(res.status).to.eql(403);
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(false);
     });
@@ -459,6 +459,13 @@ describe('Account endpoint test', () => {
       expect(alphaUpdated.subscribe.length).to.eql(0);
       const betaUpdated = await Account.findById(beta._id);
       expect(betaUpdated.subscribersTotal).to.eql(0);
+
+      const res2 = await request(server)
+        .get(`/accounts/${beta._id}`)
+        .set('Authorization', `Bearer ${token}`)
+        .set('Accept', 'application/json')
+      expect(res2.body.data.isSubscribed).to.eql(false);
+
     });
 
     it('it should not unsubscribe if there is not token', async () => {
@@ -496,9 +503,9 @@ describe('Account endpoint test', () => {
         .delete('/accounts/5d273f9ed58f5e7093b549b0/subscribe')
         .set('Authorization', `Bearer ${token}`)
         .set('Accept', 'application/json')
-      expect(res.status).to.eql(200);
+      expect(res.status).to.eql(403);
       expect(res.body).to.be.an('object');
-      expect(res.body.success).to.eql(true);
+      expect(res.body.success).to.eql(false);
     });
 
     it('it should not unsubscribe currently signed ID', async () => {

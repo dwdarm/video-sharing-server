@@ -25,7 +25,7 @@ module.exports = {
   },
 
   duplicateKeyError: {
-    status: 400,
+    status: 403,
     errorCode: 'duplicateKeyError',
     message: 'One of the key parameters is already used'
   },

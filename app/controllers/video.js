@@ -14,11 +14,41 @@ module.exports = {
     try {
       var query = {};
       if (req.query.title) query.title = { $regex: req.query.title, $options: 'i' };
-      if (req.query.username) query.username = req.query.username;
+      if (req.query.accountid) query.accountId = req.query.accountid;
       if (req.query.category) query.category = req.query.category;
       const limit = (req.query.limit) ? parseInt(req.query.limit) : 20;
       const skip = (req.query.page) ? ((parseInt(req.query.page)-1)*limit) : 0;
-      const videos = await Video.find(query).skip(skip).limit(limit).exec();
+      const videos = await Video
+        .find(query)
+        .populate('accountId', '-subscribe -saved -password -role')
+        .skip(skip)
+        .limit(limit)
+        .sort({createdAt:-1})
+        .exec();
+
+      if (req.auth) {
+        const self = await Account.findById(req.userid);
+        if (self) {
+          var results = [];
+          const accounts = videos.accountId._doc;
+          accounts.forEach(account => {
+            if (req.userid != account._id) {
+              results.push({
+                ...account,
+                isSubscribed: self.subscribe.indexOf(account._id) != -1
+              })
+            } else {
+              results.push(account);
+            }
+          });
+          res.send(200, { 
+            status:200, 
+            success:true, 
+            data: Object.assign({}, videos._doc, {accountId:results})
+          });
+          return next();
+        }
+      }
 
       res.send(200, { status:200, success:true, data:videos });
       return next();
@@ -31,10 +61,38 @@ module.exports = {
 
   async getVideo(req, res, next) {
     try {
-      const video = await Video.findById(req.params.id).exec();
+      const video = await Video
+        .findById(req.params.id)
+        .populate('accountId', '-subscribe -saved -password -role')
+        .exec();
       if (!video) throw new Error('notFoundError');
-  
-      res.send(200, { status:200, success:true, data:video });
+
+      if (!req.auth) {
+        res.send(200, { status:200, success:true, data:video });
+        return next();
+      }
+
+      const self = await Account.findById(req.userid).exec();
+      if(!self) {
+        res.send(200, { status:200, success:true, data:video });
+        return next();
+      }
+
+      const account = {
+        ...video.accountId._doc,
+        isSubscribed: self.subscribe.indexOf(video.accountId._id) != -1
+      }
+      const like = await Like.findOne({accountId:req.userid, videoId:req.params.id}).exec();
+      const isLiked = (like) ? true : false;
+
+      res.send(200, { 
+        status: 200, 
+        success: true, 
+        data: Object.assign({}, video._doc, {
+          accountId: account,
+          isLiked
+        })
+      });
       return next();
     } catch(err) { return handleError(err.message, res, next); }
   },
@@ -48,6 +106,7 @@ module.exports = {
       if (!req.auth) throw new Error('unauthorizedError');
       if (!req.body) throw new Error('emptyBodyError');
       if (!req.body.title || !req.body.urlToVideo) throw new Error('parametersError');
+      if (req.body.title.length < 4) throw new Error('parametersError');
 
       const self = await Account.findById(req.userid).exec();
       if (!self) throw new Error('unauthorizedError'); 
@@ -55,8 +114,8 @@ module.exports = {
 
       const video = new Video({
         accountId: req.userid,
-        username: req.username,
         title: req.body.title,
+        caption: req.body.caption,
         urlToVideo: req.body.urlToVideo,
         urlToThumbnail: req.body.urlToThumbnail
       });
@@ -137,10 +196,7 @@ module.exports = {
       if (!video) throw new Error('notFoundError');
 
       const like = await Like.findOne({accountId:req.userid,videoId:req.params.id}).exec();
-      if (like) {
-        res.send(200, { status:200, success:true });
-        return next();
-      }
+      if (like) throw new Error('forbiddenError');
 
       await new Like({accountId:req.userid,videoId:req.params.id}).save();
       await Video.updateOne({_id:req.params.id}, {$inc:{likesTotal:1}});
@@ -166,10 +222,7 @@ module.exports = {
       if (!video) throw new Error('notFoundError');
 
       const like = await Like.findOne({accountId:req.userid,videoId:req.params.id}).exec();
-      if (!like) {
-        res.send(200, { status:200, success:true });
-        return next();
-      }
+      if (!like) throw new Error('forbiddenError');
 
       await Like.deleteOne({_id:like._id});
       await Video.updateOne({_id:req.params.id}, {$inc:{likesTotal:-1}});

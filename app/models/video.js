@@ -1,8 +1,7 @@
 const mongoose = require('mongoose');
 
 var videoSchema = mongoose.Schema({
-  accountId: { type: mongoose.Schema.Types.ObjectId, required: true },
-  username: { type: String, required: true },
+  accountId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Account' },
   title: { type: String, required: true },
   caption: { type: String, default: '' },
   createdAt: { type: Date },

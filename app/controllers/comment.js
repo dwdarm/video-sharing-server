@@ -18,7 +18,14 @@ module.exports = {
       if (req.query.parentid) query.parentId = req.query.parentid;
       const limit = (req.query.limit) ? parseInt(req.query.limit) : 20;
       const skip = (req.query.page) ? ((parseInt(req.query.page)-1)*limit) : 0;
-      const comments = await Comment.find(query).skip(skip).limit(limit).exec();
+      const comments = await Comment
+        .find(query)
+        .populate('accountId', '-subscribe -saved -password -role')
+        .populate('videoId')
+        .sort({createdAt:-1})
+        .skip(skip)
+        .limit(limit)
+        .exec();
 
       res.send(200, { status:200, success:true, data:comments });
       return next();
@@ -31,7 +38,11 @@ module.exports = {
 
   async getComment(req, res, next) {
     try {
-      const comment = await Comment.findById(req.params.id).exec();
+      const comment = await Comment
+        .findById(req.params.id)
+        .populate('accountId', '-subscribe -saved -password -role')
+        .populate('videoId')
+        .exec();
       if (!comment) throw new Error('notFoundError');
 
       res.send(200, { status:200, success:true, data:comment });
