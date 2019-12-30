@@ -1,7 +1,13 @@
 const Account = require('../models').account;
-const Like = require('../models').like;
-const handleError = require('../common/handle-error.js');
 const validation = require('../common/validation.js');
+
+function buildResponse(status, data) {
+  return {
+    status,
+    success: (status >= 400) ? false : true,
+    data
+  }
+}
 
 module.exports = {
 
@@ -15,32 +21,31 @@ module.exports = {
       const limit = (req.query.limit) ? parseInt(req.query.limit) : 20;
       const skip = (req.query.page) ? ((parseInt(req.query.page)-1)*limit) : 0;
       const accounts = await Account
-        .find(username, '-subscribe -saved -password -role')
-        .skip(skip).limit(limit).exec();
+        .find(username)
+        .skip(skip)
+        .limit(limit)
+        .exec(); 
 
       if (req.auth) {
-        const self = await Account.findById(req.userid);
-        if (self) {
-          var results = [];
-          accounts.forEach(account => {
-            if (req.userid != account.id) {
-              results.push({
-                ...account._doc,
-                isSubscribed: self.subscribe.indexOf(account._id) != -1
-              })
-            } else {
-              results.push(account)
-            }
-          });
-          res.send(200, { status: 200, success: true, data: results });
-          return next();
-        }
-      } 
+        const self = await Account.findById(req.userid).exec();
+        res.send(
+          200,
+          buildResponse(200, accounts.map(account => account.toJSON(self)))
+        );
+        return next();
+      }
 
-      res.send(200, { status: 200, success: true, data: accounts });
+      res.send(200, { 
+        status: 200, 
+        success: true, 
+        data: accounts.map(account => account.toJSON())
+      });
       return next();
-
-    } catch(err) { handleError(err.message, res, next); }
+    } catch(err) { 
+      console.log(err);
+      res.send(500, buildResponse(500, { message: 'Internal server error' }));
+      return next();
+     }
   },
 
   /**
@@ -49,33 +54,28 @@ module.exports = {
 
   async getAccount(req, res, next) {
     try {
-      var userid = req.params.id;
-  
-      if (userid == 'me') {
-        if (!req.auth) throw new Error('unauthorizedError');
-        userid = req.userid;
-      }
-  
-      const account = await Account.findById(userid, '-subscribe -saved -password -role').exec();
-      if (!account) throw new Error('notFoundError');
-
-      if ((!req.auth) || (req.userid == account.id)) {
-        res.send(200, { status:200, success:true, data:account });
+      const account = await Account.findById(req.params.id).exec();
+      if (!account) {
+        res.send(404, buildResponse(404, { message: 'Account is not found' }));
         return next();
       }
 
-      const self = await Account.findById(req.userid).exec();
-      if(!self) {
-        res.send(200, { status:200, success:true, data:account });
+      if (req.auth) {
+        const self = await Account.findById(req.userid).exec();
+        res.send(
+          200,
+          buildResponse(200, account.toJSON(self))
+        );
         return next();
       }
 
-      res.send(200, { status:200, success:true, data: {
-        ...account._doc,
-        isSubscribed: self.subscribe.indexOf(account._id) != -1
-      }});
+      res.send(200, {status: 200, success: true, data: account.toJSON()});
       return next();
-    } catch(err) { handleError(err.message, res, next); }
+    } catch(err) { 
+      console.log(err);
+      res.send(500, buildResponse(500, { message: 'Internal server error' }));
+      return next();
+    }
   },
 
   /**
@@ -84,23 +84,58 @@ module.exports = {
 
   async postAccount(req, res, next) {
     try {
-      if (!req.body) throw new Error('emptyBodyError');
+      if (!req.body) {
+        res.send(400, buildResponse(400, { message: 'Empty request body' }));
+        return next();
+      }
+
       if (!req.body.username || 
           !req.body.email || 
-          !req.body.password) throw new Error('parametersError');
-      if (!validation.isUsername(req.body.username)) throw new Error('parametersError');
-      if (!validation.isEmail(req.body.email)) throw new Error('parametersError');
-      if (req.body.password.length < 8) throw new Error('parametersError');
+          !req.body.password) {
+          res.send(400, buildResponse(400, { 
+            message: 'Required parameters is not found' 
+          }));
+          return next();
+        }
+      
+      if (!validation.isUsername(req.body.username)) {
+        res.send(400, buildResponse(400, { message: 'Invalid username' }));
+        return next();
+      }
+
+      if (!validation.isEmail(req.body.email)) {
+        res.send(400, buildResponse(400, { message: 'Invalid E-mail' }));
+        return next();
+      }
+
+      if (req.body.password.toString().length < 8) {
+        res.send(400, buildResponse(400, { 
+          message: 'Invalid password. Must be atleast 8 characters'
+        }));
+        return next();
+      }
 
       const account = new Account({
         username: req.body.username,
         email: req.body.email,
-        password: req.body.password
+        password: req.body.password.toString()
       });
       await account.save();
-      res.send(201, { status:201, success:true });
+
+      res.send(201, buildResponse(201, account.toJSON()));
       return next();
-    } catch(err) { handleError(err.message, res, next); }
+    } catch(err) { 
+      if (err.code === 11000) {
+        res.send(403, buildResponse(403, { 
+          message: 'Username or E-mail is already used' 
+        }));
+        return next();
+      }
+
+      console.log(err);
+      res.send(500, buildResponse(500, { message: 'Internal server error' }));
+      return next();
+     }
   },
 
   /**
@@ -109,20 +144,42 @@ module.exports = {
 
   async updateAccount(req, res, next) {
     try {
-      if (!req.auth) throw new Error('unauthorizedError');
-      if (req.userid != req.params.id) throw new Error('forbiddenError');
-      if (!req.body) throw new Error('emptyBodyError');
+      if (!req.auth) {
+        res.send(401, buildResponse(401, { 
+          message: 'This method requires authentication'
+        }));
+        return next();
+      }
 
-      var update = {};
-      if (req.body.about) update.about = req.body.about;
-      if (req.body.private !== undefined) update.private = req.body.private;
-      if (req.body.urlToAvatar) update.urlToAvatar = req.body.urlToAvatar;
+      if (req.userid != req.params.id) {
+        res.send(403, buildResponse(403, { 
+          message: 'Forbidden action'
+        }));
+        return next();
+      }
 
-      await Account.updateOne({_id:req.params.id}, {$set: update}).exec();
+      if (!req.body) {
+        res.send(400, buildResponse(400, { message: 'Empty request body' }));
+        return next();
+      }
 
-      res.send(200, { status:200, success:true });
+      const account = await Account.findById(req.params.id).exec();
+      if (!account) {
+        res.send(400, buildResponse(400, { message: 'Account is not found' }));
+        return next();
+      }
+
+      if (req.body.about) { account.about = req.body.about; }
+      if (req.body.urlToAvatar) { account.urlToAvatar = req.body.urlToAvatar; }
+      await account.save();
+
+      res.send(200, buildResponse(200, account.toJSON()));
       return next();
-    } catch(err) { handleError(err.message, res, next); }
+    } catch(err) { 
+      console.log(err);
+      res.send(500, buildResponse(500, { message: 'Internal server error' }));
+      return next();
+     }
   },
 
   /**
@@ -131,18 +188,53 @@ module.exports = {
 
   async getAccountSubscriptions(req, res, next) {
     try {
-      if (!req.auth) throw new Error('unauthorizedError');
-      if (req.userid != req.params.id) throw new Error('forbiddenError');
+      if (!req.auth) {
+        res.send(401, buildResponse(401, { 
+          message: 'This method requires authentication'
+        }));
+        return next();
+      }
+
+      if (req.userid != req.params.id) {
+        res.send(403, buildResponse(403, { 
+          message: 'Forbidden accesss'
+        }));
+        return next();
+      }
+
+      const self = await Account.findById(req.userid).exec();
+      if (!self) {
+        res.send(401, buildResponse(401, { 
+          message: 'This method requires authentication'
+        }));
+        return next();
+      }
   
-      const subs = await Account
-        .findById(req.userid, 'subscribe')
-        .populate('subscribe', '-subscribe -saved -password -role')
+      const account = await Account
+        .findById(req.userid)
+        .populate('subscribes')
         .exec();
-      if (!subs) throw new Error('notFoundError');
+
+      if (!account) {
+        res.send(404, buildResponse(404, { 
+          message: 'Account is not found'
+        }));
+        return next();
+      }
     
-      res.send(200, { status:200, success:true, data:subs.subscribe });
+      res.send(
+        200, 
+        buildResponse(
+          200, 
+          account.subscribes.map(item => item ? item.toJSON(self) : null)
+        )
+      );
       return next();
-    } catch(err) { handleError(err.message, res, next); }
+    } catch(err) { 
+      console.log(err);
+      res.send(500, buildResponse(500, { message: 'Internal server error' }));
+      return next();
+     }
   },
 
   /**
@@ -151,17 +243,39 @@ module.exports = {
 
   async subscribeAccount(req, res, next) {
     try {
-      if (!req.auth) throw new Error('unauthorizedError');
-      if (req.userid == req.params.id) throw new Error('forbiddenError');
+      if (!req.auth) {
+        res.send(401, buildResponse(401, { 
+          message: 'This method requires authentication'
+        }));
+        return next();
+      }
+
+      if (req.userid == req.params.id) {
+        res.send(403, buildResponse(403, { 
+          message: 'Forbidden action'
+        }));
+        return next();
+      }
   
-      const result = await Account.updateOne({_id:req.userid}, {$addToSet:{subscribe:req.params.id}});
-      if (!result.nModified) throw new Error('forbiddenError');
+      const result = await Account
+        .updateOne({_id:req.userid}, {$addToSet:{subscribes:req.params.id}});
+
+      if (!result.nModified) {
+        res.send(403, buildResponse(403, { 
+          message: 'Forbidden action'
+        }));
+        return next();
+      }
 
       await Account.updateOne({_id:req.params.id}, {$inc:{subscribersTotal:1}});
   
-      res.send(200, { status:200, success:true });
+      res.send(200, buildResponse(200));
       return next();
-    } catch(err) { handleError(err.message, res, next); }
+    } catch(err) { 
+      console.log(err);
+      res.send(500, buildResponse(500, { message: 'Internal server error' }));
+      return next();
+     }
   },
 
   /**
@@ -170,17 +284,39 @@ module.exports = {
 
   async unsubscribeAccount(req, res, next) {
     try {
-      if (!req.auth) throw new Error('unauthorizedError');
-      if (req.userid == req.params.id) throw new Error('forbiddenError');
+      if (!req.auth) {
+        res.send(401, buildResponse(401, { 
+          message: 'This method requires authentication'
+        }));
+        return next();
+      }
+
+      if (req.userid == req.params.id) {
+        res.send(403, buildResponse(403, { 
+          message: 'Forbidden action'
+        }));
+        return next();
+      }
   
-      const result = await Account.updateOne({_id:req.userid}, {$pull:{subscribe:req.params.id}});
-      if (!result.nModified) throw new Error('forbiddenError');
+      const result = await Account
+        .updateOne({_id:req.userid}, {$pull:{subscribes:req.params.id}});
+
+      if (!result.nModified) {
+        res.send(403, buildResponse(403, { 
+          message: 'Forbidden action'
+        }));
+        return next();
+      }
 
       await Account.updateOne({_id:req.params.id}, {$inc:{subscribersTotal:-1}});
       
-      res.send(200, { status:200, success:true });
+      res.send(200, buildResponse(200));
       return next();
-    } catch(err) { handleError(err.message, res, next); }
+    } catch(err) { 
+      console.log(err);
+      res.send(500, buildResponse(500, { message: 'Internal server error' }));
+      return next();
+     }
   },
 
   /**
@@ -189,28 +325,52 @@ module.exports = {
 
   async getAccountLikes(req, res, next) {
     try {
-      if (!req.auth) throw new Error('unauthorizedError');
-      if (req.userid != req.params.id) throw new Error('forbiddenError');
+      if (!req.auth) {
+        res.send(401, buildResponse(401, { 
+          message: 'This method requires authentication'
+        }));
+        return next();
+      }
+
+      if (req.userid != req.params.id) {
+        res.send(403, buildResponse(403, { 
+          message: 'Forbidden action'
+        }));
+        return next();
+      }
+
+      const self = await Account.findById(req.userid).exec();
+      if (!self) {
+        res.send(401, buildResponse(401, { 
+          message: 'This method requires authentication'
+        }));
+        return next();
+      } 
 
       const limit = (req.query.limit) ? parseInt(req.query.limit) : 20;
       const skip = (req.query.page) ? ((parseInt(req.query.page)-1)*limit) : 0;
-      const likes = await Like
-        .find({accountId:req.params.id})
+      const account = await Account
+        .findById(req.params.id)
         .populate({
-          path: 'videoId',
-          populate: {
-            path: 'accountId',
-            select: '-subscribe -saved -password -role'
-          }
+          path: 'likes',
+          options: { limit, skip },
+          populate: 'account'
         })
-        .skip(skip)
-        .limit(limit)
-        .sort({startedAt:-1})
         .exec();
 
-      res.send(200, { status:200, success:true, data:likes });
+      res.send(
+        200, 
+        buildResponse(
+          200,
+          account.likes.map(item => item ? item.toJSON(self) : null)
+        )
+      );
       return next();
-    } catch(err) { handleError(err.message, res, next); }
+    } catch(err) { 
+      console.log(err);
+      res.send(500, buildResponse(500, { message: 'Internal server error' }));
+      return next();
+     }
   }
 
 }

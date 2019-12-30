@@ -1,7 +1,14 @@
 const bcrypt = require('bcrypt');
 const token = require('../common/token.js');
 const Account = require('../models').account;
-const handleError = require('../common/handle-error.js');
+
+function buildResponse(status, data) {
+  return {
+    status,
+    success: (status >= 400) ? false : true,
+    data
+  }
+}
 
 module.exports = {
 
@@ -11,22 +18,38 @@ module.exports = {
 
   async auth(req, res, next) {
     try {
-      if (!req.body) throw new Error('emptyBodyError');
+      if (!req.body) {
+        res.send(400, buildResponse(400, { message: 'Empty request body' }));
+        return next();
+      }
 
       const account = await Account.findOne({username:req.body.username}).exec();
-      if (!account) throw new Error('notFoundError');
+      if (!account) {
+        res.send(401, buildResponse(401, { 
+          message: 'Username is not found'
+        }));
+        return next();
+      }
       
-      const match = await bcrypt.compare(req.body.password, account.password);
-      if (!match) throw new Error('notFoundError');
+      const match = await bcrypt.compare(req.body.password.toString(), account.password);
+      if (!match) {
+        res.send(401, buildResponse(401, { 
+          message: 'Wrong password'
+        }));
+        return next();
+      }
   
       const accessToken = await token.generateToken({
         id: account._id,
         username: account.username,
-        role: account.role
       }, { expiresIn:'7d' });
   
       res.send(200, { status:200, success:true, data:{accessToken:accessToken} });
       return next();
-    } catch(err) { handleError(err.message, res, next); }
+    } catch(err) { 
+      console.log(err);
+      res.send(500, buildResponse(500, { message: 'Internal server error' }));
+      return next();
+     }
   }
 }

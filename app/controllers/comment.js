@@ -1,7 +1,14 @@
 const Account = require('../models').account;
 const Comment = require('../models').comment;
 const Video = require('../models').video;
-const handleError = require('../common/handle-error.js');
+
+function buildResponse(status, data) {
+  return {
+    status,
+    success: (status >= 400) ? false : true,
+    data
+  }
+}
 
 module.exports = {
 
@@ -12,24 +19,43 @@ module.exports = {
   async getComments(req, res, next) {
     try {
       var query = {};
-      if (req.query.accountid) query.accountId = req.query.accountid;
-      if (req.query.videoid) query.videoId = req.query.videoid;
-      if (req.query.root) query.isRoot = req.query.root;
-      if (req.query.parentid) query.parentId = req.query.parentid;
+      if (req.query.accountid) query.account = req.query.accountid;
+      if (req.query.videoid) query.video = req.query.videoid;
       const limit = (req.query.limit) ? parseInt(req.query.limit) : 20;
       const skip = (req.query.page) ? ((parseInt(req.query.page)-1)*limit) : 0;
       const comments = await Comment
         .find(query)
-        .populate('accountId', '-subscribe -saved -password -role')
-        .populate('videoId')
+        .populate('account')
         .sort({createdAt:-1})
         .skip(skip)
         .limit(limit)
         .exec();
 
-      res.send(200, { status:200, success:true, data:comments });
+      if (req.auth) {
+        const self = await Account.findById(req.userid).exec();
+        res.send(
+          200,
+          buildResponse(
+            200, 
+            comments.map(comment => comment ? comment.toJSON(self) : null)
+          )
+        );
+        return next();
+      }
+  
+      res.send(
+        200,
+        buildResponse(
+          200, 
+          comments.map(comment => comment ? comment.toJSON() : null)
+        )
+      );
       return next();
-    } catch(err) { return handleError(err.message, res, next); }
+    } catch(err) { 
+      console.log(err);
+      res.send(500, buildResponse(500, { message: 'Internal server error' }));
+      return next();
+     }
   },
 
   /**
@@ -40,14 +66,33 @@ module.exports = {
     try {
       const comment = await Comment
         .findById(req.params.id)
-        .populate('accountId', '-subscribe -saved -password -role')
-        .populate('videoId')
+        .populate('account')
         .exec();
-      if (!comment) throw new Error('notFoundError');
+        
+      if (!comment) {
+        res.send(404, buildResponse(404, { message: 'Comments is not found' }));
+        return next();
+      }
 
-      res.send(200, { status:200, success:true, data:comment });
+      if (req.auth) {
+        const self = await Account.findById(req.userid).exec();
+        res.send(
+          200,
+          buildResponse(200, comment.toJSON(self))
+        );
+        return next();
+      }
+
+      res.send(
+        200,
+        buildResponse(200, comment.toJSON())
+      );
       return next();
-    } catch(err) { return handleError(err.message, res, next); }
+    } catch(err) { 
+      console.log(err);
+      res.send(500, buildResponse(500, { message: 'Internal server error' }));
+      return next();
+     }
   },
 
   /**
@@ -56,20 +101,43 @@ module.exports = {
 
   async updateComment(req, res, next) {
     try {
-      if (!req.auth) throw new Error('unauthorizedError');
-      if (!req.body) throw new Error('emptyBodyError');
+      if (!req.auth) {
+        res.send(401, buildResponse(401, { 
+          message: 'This method requires authentication'
+        }));
+        return next();
+      }
 
-      const comment = await Comment.findById(req.params.id).exec();
-      if (!comment) throw new Error('notFoundError');
-      if (req.userid != comment.accountId) throw new Error('forbiddenError');
+      if (!req.body) {
+        res.send(400, buildResponse(400, { message: 'Empty request body' }));
+        return next();
+      }
 
-      var update = {};
-      if (req.body.text) update.text = req.body.text;
-      await Comment.updateOne({_id:req.params.id}, {$set:update});
+      const comment = await Comment
+        .findById(req.params.id)
+        .populate('account')
+        .exec();
+      
+      if (!comment) {
+        res.send(404, buildResponse(404, { message: 'Comments is not found' }));
+        return next();
+      }
 
-      res.send(200, { status:200, success:true });
+      if (req.userid != comment.account._id) {
+        res.send(403, buildResponse(403, { message: 'Forbidden action' }));
+        return next();
+      }
+
+      if (req.body.text) comment.text = req.body.text;
+      await comment.save();
+
+      res.send(200, buildResponse(200, comment.toJSON()));
       return next();
-    } catch(err) { return handleError(err.message, res, next); }
+    } catch(err) { 
+      console.log(err);
+      res.send(500, buildResponse(500, { message: 'Internal server error' }));
+      return next();
+     }
   },
 
   /**
@@ -78,54 +146,35 @@ module.exports = {
 
   async deleteComment(req, res, next) {
     try {
-      if (!req.auth) throw new Error('unauthorizedError');
-
-      const comment = await Comment.findById(req.params.id).exec();
-      if (!comment) throw new Error('notFoundError');
-      if (req.userid != comment.accountId) {
-        if (req.role > 1) throw new Error('forbiddenError');
+      if (!req.auth) {
+        res.send(401, buildResponse(401, { 
+          message: 'This method requires authentication'
+        }));
+        return next();
       }
 
-      const videoID = comment.videoId;
+      const comment = await Comment.findById(req.params.id).exec();
+      if (!comment) {
+        res.send(404, buildResponse(404, { message: 'Comments is not found' }));
+        return next();
+      }
+
+      if (req.userid != comment.account) {
+        res.send(403, buildResponse(403, { message: 'Forbidden action' }));
+        return next();
+      }
+
+      const videoId = comment.video;
       await Comment.deleteOne({_id:req.params.id});
-      await Comment.deleteMany({parentId:req.params.id});
-      await Video.updateOne({_id:videoID}, {$inc:{commentsTotal:-1}});
+      await Video.updateOne({_id:videoId}, {$inc:{commentsTotal:-1}});
 
-      res.send(200, { status:200, success:true });
+      res.send(200, buildResponse(200));
       return next();
-    } catch(err) { return handleError(err.message, res, next); }
+    } catch(err) { 
+      console.log(err);
+      res.send(500, buildResponse(500, { message: 'Internal server error' }));
+      return next();
+     }
   },
-
-  /**
-   * /POST /comments/:id/reply
-   */ 
-
-  async replyComment(req, res, next) {
-    try {
-      if (!req.auth) throw new Error('unauthorizedError');
-      if (!req.body) throw new Error('emptyBodyError');
-
-      const self = await Account.findById(req.userid).exec();
-      if (!self) throw new Error('unauthorizedError'); 
-      if (!self.verified) throw new Error('verifiedError'); 
-
-      const parent = await Comment.findById(req.params.id).exec();
-      if (!parent) throw new Error('notFoundError');
-
-      const comment = new Comment({
-        accountId: self._id,
-        videoId: parent.videoId,
-        isRoot: false,
-        parentId: parent._id,
-        text: (req.body.text) ? req.body.text : ''
-      });
-      await comment.save();
-
-      await Comment.updateOne({_id:parent._id}, {$inc:{childsTotal:1}});
-
-      res.send(201, { status:201, success:true, data:comment });
-      return next();
-    } catch(err) { return handleError(err.message, res, next); }
-  }
 
 }

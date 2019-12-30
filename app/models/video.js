@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 var videoSchema = mongoose.Schema({
-  accountId: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Account' },
+  account: { type: mongoose.Schema.Types.ObjectId, required: true, ref: 'Account' },
   title: { type: String, required: true },
   caption: { type: String, default: '' },
   createdAt: { type: Date },
@@ -9,10 +9,26 @@ var videoSchema = mongoose.Schema({
   urlToThumbnail: { type: String },
   viewsTotal: { type: Number, default: 0 },
   likesTotal: { type: Number, default: 0 },
-  commentsTotal: { type: Number, default: 0 },
   category: { type: String, default: 'general'},
-  public: { type: Boolean, default: true }
+  commentsTotal: { type: Number, default: 0 }
 });
+
+videoSchema.methods.toJSON = function(loggedAccount) {
+  return {
+    id: this._id,
+    account: this.account ? this.account.toJSON(loggedAccount) : this.account,
+    title: this.title,
+    caption: this.caption,
+    createdAt: this.createdAt,
+    urlToVideo: this.urlToVideo,
+    urlToThumbnail: this.urlToThumbnail,
+    viewsTotal: this.viewsTotal,
+    likesTotal: this.likesTotal,
+    category: this.category,
+    commentsTotal: this.commentsTotal,
+    isLiked: loggedAccount ? loggedAccount.isLiked(this._id) : false
+  }
+}
 
 videoSchema.pre('save', function(next) {
   if (!this.isNew || !this.isModified) return next();

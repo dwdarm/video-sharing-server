@@ -44,7 +44,7 @@ describe('Auth endpoint test', () => {
           username: 'alpha',
           password: '12345678'
         });
-      expect(res.status).to.eql(404);
+      expect(res.status).to.eql(401);
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(false);
     });
@@ -63,7 +63,7 @@ describe('Auth endpoint test', () => {
           username: 'alpha',
           password: '11112222'
         });
-      expect(res.status).to.eql(404);
+      expect(res.status).to.eql(401);
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(false);
     });

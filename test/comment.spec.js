@@ -36,9 +36,15 @@ describe('Comment endpoints test', () => {
   describe('/GET /comments/:id', () => {
 
     it('it should GET a comment by given ID', async () => {
+      const account = new Account({
+        username: 'alpha',
+        email: 'alpha@alpha.com',
+        password: '12345678'
+      });
+      await account.save();
       const comment = new Comment({
-        accountId: '5d273f9ed58f5e7093b549b0',
-        videoId: '5d273f9ed58f5e7093b549b1',
+        account: account._id,
+        video: '5d273f9ed58f5e7093b549b1',
         text: 'comment text'
       });
       await comment.save();
@@ -68,8 +74,8 @@ describe('Comment endpoints test', () => {
       await account.save();
       const token = await tkn.generateToken({id:account._id,username:account.username,role:account.role});
       const comment = new Comment({
-        accountId: account._id,
-        videoId: '5d273f9ed58f5e7093b549b1',
+        account: account._id,
+        video: '5d273f9ed58f5e7093b549b1',
         text: 'comment text'
       });
       await comment.save();
@@ -105,8 +111,8 @@ describe('Comment endpoints test', () => {
 
     it('it should not UPDATE a comment if it is not authenticated', async () => {
       const comment = new Comment({
-        accountId: '5d273f9ed58f5e7093b549b0',
-        videoId: '5d273f9ed58f5e7093b549b1',
+        account: '5d273f9ed58f5e7093b549b0',
+        video: '5d273f9ed58f5e7093b549b1',
         text: 'comment text'
       });
       await comment.save();
@@ -126,10 +132,16 @@ describe('Comment endpoints test', () => {
         password: '12345678'
       });
       await account.save();
+      const account2 = new Account({
+        username: 'beta',
+        email: 'beta@beta.com',
+        password: '12345678'
+      });
+      await account2.save();
       const token = await tkn.generateToken({id:account._id,username:account.username,role:account.role});
       const comment = new Comment({
-        accountId: '5d273f9ed58f5e7093b549b0',
-        videoId: '5d273f9ed58f5e7093b549b1',
+        account: account2._id,
+        video: '5d273f9ed58f5e7093b549b1',
         text: 'comment text'
       });
       await comment.save();
@@ -156,8 +168,8 @@ describe('Comment endpoints test', () => {
       await account.save();
       const token = await tkn.generateToken({id:account._id,username:account.username,role:account.role});
       const comment = new Comment({
-        accountId: account._id,
-        videoId: '5d273f9ed58f5e7093b549b1',
+        account: account._id,
+        video: '5d273f9ed58f5e7093b549b1',
         text: 'comment text'
       });
       await comment.save();
@@ -192,8 +204,8 @@ describe('Comment endpoints test', () => {
 
     it('it should not DELETE a comment if it is not authenticated', async () => {
       const comment = new Comment({
-        accountId: '5d273f9ed58f5e7093b549b0',
-        videoId: '5d273f9ed58f5e7093b549b1',
+        account: '5d273f9ed58f5e7093b549b0',
+        video: '5d273f9ed58f5e7093b549b1',
         text: 'comment text'
       });
       await comment.save();
@@ -212,10 +224,16 @@ describe('Comment endpoints test', () => {
         password: '12345678'
       });
       await account.save();
+      const account2 = new Account({
+        username: 'beta',
+        email: 'beta@beta.com',
+        password: '12345678'
+      });
+      await account2.save();
       const token = await tkn.generateToken({id:account._id,username:account.username,role:account.role});
       const comment = new Comment({
-        accountId: '5d273f9ed58f5e7093b549b0',
-        videoId: '5d273f9ed58f5e7093b549b1',
+        account: account2._id,
+        video: '5d273f9ed58f5e7093b549b1',
         text: 'comment text'
       });
       await comment.save();
@@ -224,83 +242,6 @@ describe('Comment endpoints test', () => {
         .set('Authorization', `Bearer ${token}`)
         .set('Accept', 'application/json')
       expect(res.status).to.eql(403);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.eql(false);
-    });
-
-  });
-
-  describe('/POST /comments/:id/reply', () => {
-
-    it('it should not POST a reply', async () => {
-      const account = new Account({
-        username: 'alpha',
-        email: 'alpha@alpha.com',
-        password: '12345678',
-        verified: true
-      });
-      await account.save();
-      const token = await tkn.generateToken({id:account._id,username:account.username,role:account.role});
-      const comment = new Comment({
-        accountId: account._id,
-        videoId: '5d273f9ed58f5e7093b549b1',
-        text: 'comment text'
-      });
-      await comment.save();
-      const res = await request(server)
-        .post(`/comments/${comment._id}/reply`)
-        .set('Authorization', `Bearer ${token}`)
-        .set('Accept', 'application/json')
-        .send({text:'reply text'})
-      expect(res.status).to.eql(201);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.eql(true);
-      expect(res.body.data).to.be.an('object');
-      expect(res.body.data.accountId).to.eql(account.id);
-      expect(res.body.data.videoId).to.eql('5d273f9ed58f5e7093b549b1');
-      expect(res.body.data.parentId).to.eql(comment.id);
-      expect(res.body.data.text).to.eql('reply text');
-      expect(res.body.data.childsTotal).to.eql(0);
-    });
-
-    it('it should not POST a reply if the comment is not exist', async () => {
-      const account = new Account({
-        username: 'alpha',
-        email: 'alpha@alpha.com',
-        password: '12345678',
-        verified: true
-      });
-      await account.save();
-      const token = await tkn.generateToken({id:account._id,username:account.username,role:account.role});
-      const res = await request(server)
-        .post(`/comments/5d273f9ed58f5e7093b549b0/reply`)
-        .set('Authorization', `Bearer ${token}`)
-        .set('Accept', 'application/json')
-        .send({text:'reply text'})
-      expect(res.status).to.eql(404);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.eql(false);
-    });
-
-    it('it should not POST a reply if it is not authenticated', async () => {
-      const account = new Account({
-        username: 'alpha',
-        email: 'alpha@alpha.com',
-        password: '12345678',
-        verified: true
-      });
-      await account.save();
-      const comment = new Comment({
-        accountId: account._id,
-        videoId: '5d273f9ed58f5e7093b549b1',
-        text: 'comment text'
-      });
-      await comment.save();
-      const res = await request(server)
-        .post(`/comments/${comment._id}/reply`)
-        .set('Accept', 'application/json')
-        .send({text:'reply text'})
-      expect(res.status).to.eql(401);
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(false);
     });

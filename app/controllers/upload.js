@@ -1,7 +1,14 @@
 const sha1 = require('sha1');
-const handleError = require('../common/handle-error.js');
 const Account = require('../models/account.js');
 const { baseCloudUrl, cloudName, apiKey, apiSecret } = require('../config');
+
+function buildResponse(status, data) {
+  return {
+    status,
+    success: (status >= 400) ? false : true,
+    data
+  }
+}
 
 module.exports = {
 
@@ -11,11 +18,20 @@ module.exports = {
 
   async upload(req, res, next) {
     try {
-      if (!req.auth) throw new Error('unauthorizedError');
+      if (!req.auth) {
+        res.send(401, buildResponse(401, { 
+          message: 'This method requires authentication'
+        }));
+        return next();
+      }
 
       const self = await Account.findById(req.userid).exec();
-      if (!self) throw new Error('unauthorizedError'); 
-      if (!self.verified) throw new Error('verifiedError');
+      if (!self) {
+        res.send(401, buildResponse(401, { 
+          message: 'This method requires authentication'
+        }));
+        return next();
+      }
 
       const timestamp = Math.floor(new Date() / 1000);
       const payload = `timestamp=${timestamp}`;
@@ -26,7 +42,10 @@ module.exports = {
       res.send(200, { status:200, success:true, data: { url: url } });
       return next();
 
-    } catch(err) {  console.log(err); handleError(err.message, res, next); }
+    } catch(err) { 
+      res.send(500, buildResponse(500, { message: 'Internal server error' }));
+      return next();
+     }
   }
 
 }

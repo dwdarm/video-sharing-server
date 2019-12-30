@@ -4,7 +4,6 @@ const expect = require('expect.js');
 const server = require('../server.js');
 const Account = require('../app/models').account;
 const Video = require('../app/models').video;
-const Like = require('../app/models').like;
 const tkn = require('../app/common/token.js');
 
 describe('Video endpoint test', () => {
@@ -12,13 +11,11 @@ describe('Video endpoint test', () => {
   beforeEach(async () => {
     await Account.deleteMany({});
     await Video.deleteMany({});
-    await Like.deleteMany({});
   });
 
   afterEach(async () => {
     await Account.deleteMany({});
     await Video.deleteMany({});
-    await Like.deleteMany({});
   });
 
   describe('/GET /videos', () => {
@@ -43,7 +40,7 @@ describe('Video endpoint test', () => {
       });
       await account.save();
       const video = new Video({
-        accountId: account._id,
+        account: account._id,
         username: account.username,
         title: 'test',
         mediaId: 'test',
@@ -56,7 +53,7 @@ describe('Video endpoint test', () => {
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(true);
       expect(res.body.data).to.be.an('object');
-      expect(res.body.data._id).to.eql(video.id);
+      expect(res.body.data.id).to.eql(video.id);
     });
 
     it('it should not GET a video if ID is not exist', async () => {
@@ -149,7 +146,7 @@ describe('Video endpoint test', () => {
 
     it('it should UPDATE a video by given ID', async () => {
       const video = new Video({
-        accountId: accountId,
+        account: accountId,
         username: username,
         title: 'test',
         mediaId: 'test',
@@ -158,8 +155,7 @@ describe('Video endpoint test', () => {
       await video.save();
       const update = {
         title: 'new title',
-        caption: 'new caption',
-        public: false
+        caption: 'new caption'
       }
       const res = await request(server)
         .put(`/videos/${video._id}`)
@@ -169,10 +165,8 @@ describe('Video endpoint test', () => {
       expect(res.status).to.eql(200);
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(true);
-      const updated = await Video.findById(video._id);
-      expect(updated.title).to.eql(update.title);
-      expect(updated.caption).to.eql(update.caption);
-      expect(updated.public).to.eql(update.public);
+      expect(res.body.data.title).to.eql(update.title);
+      expect(res.body.data.caption).to.eql(update.caption);
     });
 
     it('it should not UPDATE if the video is not exist', async () => {
@@ -193,7 +187,7 @@ describe('Video endpoint test', () => {
 
     it('it should not UPDATE a video if it is not authenticated', async () => {
       const video = new Video({
-        accountId: accountId,
+        account: accountId,
         username: username,
         title: 'test',
         mediaId: 'test',
@@ -222,7 +216,7 @@ describe('Video endpoint test', () => {
       });
       await owner.save();
       const video = new Video({
-        accountId: owner._id,
+        account: owner._id,
         username: owner.username,
         title: 'test',
         mediaId: 'test',
@@ -264,7 +258,7 @@ describe('Video endpoint test', () => {
 
     it('it should DELETE a video by given ID', async () => {
       const video = new Video({
-        accountId: accountId,
+        account: accountId,
         username: username,
         title: 'test',
         mediaId: 'test',
@@ -294,7 +288,7 @@ describe('Video endpoint test', () => {
 
     it('it should not DELETE a video if it is not authenticated', async () => {
       const video = new Video({
-        accountId: accountId,
+        account: accountId,
         username: username,
         title: 'test',
         mediaId: 'test',
@@ -317,7 +311,7 @@ describe('Video endpoint test', () => {
       });
       await owner.save();
       const video = new Video({
-        accountId: owner._id,
+        account: owner._id,
         username: owner.username,
         title: 'test',
         mediaId: 'test',
@@ -337,29 +331,22 @@ describe('Video endpoint test', () => {
 
   describe('/PUT /videos/:id/like', () => {
 
-    var accountId, username, token;
-
-    beforeEach(async () => {
+    it('it should UPDATE video\'s likes by given ID', async () => {
       const account = new Account({
         username: 'alpha',
         email: 'alpha@alpha.com',
-        password: '12345678'
+        password: '12345678',
       });
       await account.save();
-      accountId = account._id;
-      username = account.username;
-      token = await tkn.generateToken({id:account._id,username:account.username,role:account.role});
-    });
-
-    it('it should UPDATE video\'s likes by given ID', async () => {
       const video = new Video({
-        accountId: accountId,
-        username: username,
+        account: account._id,
+        username: account.username,
         title: 'test',
         mediaId: 'test',
         urlToVideo: 'test'
       });
       await video.save();
+      token = await tkn.generateToken({id:account._id,username:account.username,role:account.role});
       var res = await request(server)
         .put(`/videos/${video._id}/like`)
         .set('Authorization', `Bearer ${token}`)
@@ -389,9 +376,15 @@ describe('Video endpoint test', () => {
     });
 
     it('it should not UPDATE video\'s likes if it is not authenticated', async () => {
+      const account = new Account({
+        username: 'alpha',
+        email: 'alpha@alpha.com',
+        password: '12345678',
+      });
+      await account.save();
       const video = new Video({
-        accountId: accountId,
-        username: username,
+        account: account._id,
+        username: account.username,
         title: 'test',
         mediaId: 'test',
         urlToVideo: 'test'
@@ -409,31 +402,25 @@ describe('Video endpoint test', () => {
 
   describe('/DELETE /videos/:id/like', () => {
 
-    var accountId, username, token;
-
-    beforeEach(async () => {
+    it('it should UPDATE video\'s likes by given ID', async () => {
       const account = new Account({
         username: 'alpha',
         email: 'alpha@alpha.com',
-        password: '12345678'
+        password: '12345678',
       });
       await account.save();
-      accountId = account._id;
-      username = account.username;
-      token = await tkn.generateToken({id:account._id,username:account.username,role:account.role});
-    });
-
-    it('it should UPDATE video\'s likes by given ID', async () => {
       const video = new Video({
-        accountId: accountId,
-        username: username,
+        account: account._id,
+        username: account.username,
         title: 'test',
         mediaId: 'test',
         urlToVideo: 'test',
         likesTotal: 1
       });
       await video.save();
-      await new Like({accountId:accountId,videoId:video._id}).save();
+      account.likes = [video._id];
+      await account.save();
+      token = await tkn.generateToken({id:account._id,username:account.username,role:account.role});
       var res = await request(server)
         .delete(`/videos/${video._id}/like`)
         .set('Authorization', `Bearer ${token}`)
@@ -463,14 +450,23 @@ describe('Video endpoint test', () => {
     });
 
     it('it should not UPDATE video\'s likes if it is not authenticated', async () => {
+      const account = new Account({
+        username: 'alpha',
+        email: 'alpha@alpha.com',
+        password: '12345678',
+      });
+      await account.save();
       const video = new Video({
-        accountId: accountId,
-        username: username,
+        account: account._id,
+        username: account.username,
         title: 'test',
         mediaId: 'test',
-        urlToVideo: 'test'
+        urlToVideo: 'test',
+        likesTotal: 1
       });
       await video.save();
+      account.likes = [video._id];
+      await account.save();
       var res = await request(server)
         .delete(`/videos/${video._id}/like`)
         .set('Accept', 'application/json')
@@ -493,7 +489,7 @@ describe('Video endpoint test', () => {
       await account.save();
       const token = await tkn.generateToken({id:account._id,username:account.username,role:account.role});
       const video = new Video({
-        accountId: account._id,
+        account: account._id,
         username: account.username,
         title: 'test',
         mediaId: 'test',
@@ -504,16 +500,13 @@ describe('Video endpoint test', () => {
         .post(`/videos/${video._id}/comment`)
         .set('Authorization', `Bearer ${token}`)
         .set('Accept', 'application/json')
-        .send({text:'nice video'})
+        .send({text:'nice video'});
       expect(res.status).to.eql(201);
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(true);
       expect(res.body.data).to.be.an('object');
-      expect(res.body.data.accountId).to.eql(account.id);
-      expect(res.body.data.videoId).to.eql(video.id);
-      expect(res.body.data.parentId).to.eql(undefined);
+      expect(res.body.data.account.id).to.eql(account.id);
       expect(res.body.data.text).to.eql('nice video');
-      expect(res.body.data.childsTotal).to.eql(0);
       const updated = await Video.findById(video._id);
       expect(updated.commentsTotal).to.eql(1);
     });
@@ -546,7 +539,7 @@ describe('Video endpoint test', () => {
       });
       await account.save();
       const video = new Video({
-        accountId: account._id,
+        account: account._id,
         username: account.username,
         title: 'test',
         mediaId: 'test',

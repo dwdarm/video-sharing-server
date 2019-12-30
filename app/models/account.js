@@ -9,14 +9,31 @@ var accountSchema = mongoose.Schema({
   role: { type: Number, default: 3 },
   email: { type: String, required: true, unique: true },
   urlToAvatar: { type: String },
-  private: { type: Boolean, default: false },
   about: { type: String, default: '' },
-  subscribe: [{type: mongoose.Schema.Types.ObjectId, ref: 'Account'}],
+  likes: [{type: mongoose.Schema.Types.ObjectId, ref: 'Video'}],
+  subscribes: [{type: mongoose.Schema.Types.ObjectId, ref: 'Account'}],
   subscribersTotal: { type: Number, default: 0 },
-  likesTotal: { type: Number, default: 0 },
-  saved:[{type: mongoose.Schema.Types.ObjectId, ref: 'Video'}],
-  verified: { type: Boolean, default: true },
 });
+
+accountSchema.methods.toJSON = function(loggedAccount) {
+  return {
+    id: this._id,
+    username: this.username,
+    createdAt: this.createdAt,
+    urlToAvatar: this.urlToAvatar,
+    about: this.about,
+    subscribersTotal: this.subscribersTotal,
+    isSubscribed: loggedAccount ? loggedAccount.isSubscribed(this._id) : false
+  }
+}
+
+accountSchema.methods.isLiked = function(id) {
+  return this.likes.indexOf(id) !== -1;
+}
+
+accountSchema.methods.isSubscribed = function(id) {
+  return this.subscribes.indexOf(id) !== -1;
+}
 
 accountSchema.pre('save', function(next) {
   if (!this.isNew || !this.isModified) {
@@ -33,14 +50,6 @@ accountSchema.pre('save', function(next) {
     account.createdAt = new Date();
     return next ();
   });
-});
-
-accountSchema.post('save', function(err, doc, next) {
-  if (err.name === 'MongoError' && err.code === 11000) {
-    return next(new Error('duplicateKeyError'));
-  }
-
-  return next();
 });
 
 module.exports = mongoose.model('Account', accountSchema);

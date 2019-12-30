@@ -149,51 +149,7 @@ describe('Account endpoint test', () => {
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(true);
       expect(res.body.data).to.be.an('object');
-      expect(res.body.data._id).to.eql(account.id);
-    });
-
-    it('it should GET currently signed account', async () => {
-      const account = new Account({
-        username: 'alpha',
-        email: 'alpha@alpha.com',
-        password: '12345678'
-      });
-      await account.save();
-      const token = await tkn.generateToken({id:account._id,username:account.username,role:account.role});
-      const res = await request(server)
-        .get('/accounts/me')
-        .set('Authorization', `Bearer ${token}`)
-        .set('Accept', 'application/json');
-      expect(res.status).to.eql(200);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.eql(true);
-      expect(res.body.data).to.be.an('object');
-      expect(res.body.data._id).to.eql(account.id);
-    });
-
-    it('it should not GET currently signed account if there is not token', async () => {
-      const account = new Account({
-        username: 'alpha',
-        email: 'alpha@alpha.com',
-        password: '12345678'
-      });
-      await account.save();
-      const res = await request(server)
-        .get('/accounts/me')
-        .set('Accept', 'application/json');
-      expect(res.status).to.eql(401);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.eql(false);
-    });
-
-    it('it should not GET currently signed account if token is invalid', async () => {
-      const res = await request(server)
-        .get('/accounts/me')
-        .set('Authorization', 'Bearer adasdfwafewafawfafaefafawfaaFAFAFAWF')
-        .set('Accept', 'application/json');
-      expect(res.status).to.eql(401);
-      expect(res.body).to.be.an('object');
-      expect(res.body.success).to.eql(false);
+      expect(res.body.data.id).to.eql(account.id);
     });
 
     it('it should not GET if account ID is not exist', async () => {
@@ -219,7 +175,6 @@ describe('Account endpoint test', () => {
       });
       const update = {
         about: 'hello world',
-        private: true,
         urlToAvatar: 'url_to_avatar'
       }
       await account.save();
@@ -232,10 +187,8 @@ describe('Account endpoint test', () => {
       expect(res.status).to.eql(200);
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(true);
-      const updated = await Account.findById(account._id);
-      expect(updated.about).to.eql(update.about);
-      expect(updated.private).to.eql(update.private);
-      expect(updated.urlToAvatar).to.eql(update.urlToAvatar);
+      expect(res.body.data.about).to.eql(update.about);
+      expect(res.body.data.urlToAvatar).to.eql(update.urlToAvatar);
     });
 
     it('it should not UPDATE currently signed account if ID is different', async () => {
@@ -364,7 +317,7 @@ describe('Account endpoint test', () => {
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(true);
       const alphaUpdated = await Account.findById(alpha._id);
-      expect(alphaUpdated.subscribe.length).to.eql(1);
+      expect(alphaUpdated.subscribes.length).to.eql(1);
       const betaUpdated = await Account.findById(beta._id);
       expect(betaUpdated.subscribersTotal).to.eql(1);
     });
@@ -444,7 +397,7 @@ describe('Account endpoint test', () => {
         username: 'alpha',
         email: 'alpha@alpha.com',
         password: '12345678',
-        subscribe: [beta._id]
+        subscribes: [beta._id]
       });
       await alpha.save();
       const token = await tkn.generateToken({id:alpha._id,username:alpha.username,role:alpha.role});
@@ -456,16 +409,9 @@ describe('Account endpoint test', () => {
       expect(res.body).to.be.an('object');
       expect(res.body.success).to.eql(true);
       const alphaUpdated = await Account.findById(alpha._id);
-      expect(alphaUpdated.subscribe.length).to.eql(0);
+      expect(alphaUpdated.subscribes.length).to.eql(0);
       const betaUpdated = await Account.findById(beta._id);
       expect(betaUpdated.subscribersTotal).to.eql(0);
-
-      const res2 = await request(server)
-        .get(`/accounts/${beta._id}`)
-        .set('Authorization', `Bearer ${token}`)
-        .set('Accept', 'application/json')
-      expect(res2.body.data.isSubscribed).to.eql(false);
-
     });
 
     it('it should not unsubscribe if there is not token', async () => {

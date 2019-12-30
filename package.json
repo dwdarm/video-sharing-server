@@ -11,18 +11,19 @@
   "author": "Fajar Dwi Darmanto",
   "license": "ISC",
   "dependencies": {
-    "bcrypt": "^3.0.6",
+    "bcrypt": "^3.0.7",
     "dotenv": "^8.2.0",
     "jsonwebtoken": "^8.5.1",
-    "mongoose": "^5.7.5",
-    "restify": "^8.4.0",
+    "mongoose": "^5.8.3",
+    "restify": "^8.5.1",
     "restify-cors-middleware": "^1.1.1",
     "sha1": "^1.1.1"
   },
   "devDependencies": {
     "expect.js": "^0.3.1",
     "mocha": "^6.2.2",
-    "nodemon": "^1.19.3",
+    "morgan": "^1.9.1",
+    "nodemon": "^1.19.4",
     "supertest": "^4.0.2"
   }
 }

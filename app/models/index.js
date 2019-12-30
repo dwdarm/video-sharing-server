@@ -3,5 +3,4 @@ module.exports = {
   account: require('./account.js'),
   video: require('./video.js'),
   comment: require('./comment.js'),
-  like: require('./like.js')
 }

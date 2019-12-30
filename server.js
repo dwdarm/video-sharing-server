@@ -19,6 +19,11 @@ server.use(restify.plugins.queryParser({
 server.use(restify.plugins.bodyParser({
   keepExtensions: true
 }));
+
+if (process.env.NODE_ENV === 'development') {
+  server.use(require('morgan')('combined'));
+}
+
 require('./app/routes')(server);
 
 // init database
